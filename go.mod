@@ -1,4 +1,4 @@
-module github.com/hashicorp/go-retryablehttp
+module github.com/zergo0/go-retryablehttp
 
 require (
 	github.com/benbjohnson/clock v1.3.5 // indirect
