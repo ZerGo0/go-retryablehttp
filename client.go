@@ -40,6 +40,8 @@ import (
 	"sync"
 	"time"
 
+	"go.uber.org/ratelimit"
+
 	cleanhttp "github.com/hashicorp/go-cleanhttp"
 )
 
@@ -389,8 +391,12 @@ type Client struct {
 	// ErrorHandler specifies the custom error handler to use, if any
 	ErrorHandler ErrorHandler
 
-	loggerInit sync.Once
-	clientInit sync.Once
+	// Ratelimiter specifies the rate limiter to use
+	Ratelimiter *ratelimit.Limiter
+
+	loggerInit  sync.Once
+	clientInit  sync.Once
+	ratelimited bool
 }
 
 // NewClient creates a new Client with default settings.
@@ -617,6 +623,23 @@ func (c *Client) Do(req *Request) (*http.Response, error) {
 			}
 		}
 
+		limiter := *c.Ratelimiter
+		limiter.Take()
+
+		if i != 0 && c.ratelimited {
+			timer := time.NewTimer(35 * time.Second)
+			select {
+			case <-req.Context().Done():
+				timer.Stop()
+				c.HTTPClient.CloseIdleConnections()
+				return nil, req.Context().Err()
+			case <-timer.C:
+			}
+
+			limiter := *c.Ratelimiter
+			limiter.Take()
+		}
+
 		// Attempt the request
 		resp, doErr = c.HTTPClient.Do(req.Request)
 
@@ -655,8 +678,11 @@ func (c *Client) Do(req *Request) (*http.Response, error) {
 		}
 
 		if !shouldRetry {
+			c.ratelimited = false
 			break
 		}
+
+		c.ratelimited = true
 
 		// We do this before drainBody because there's no need for the I/O if
 		// we're breaking out
