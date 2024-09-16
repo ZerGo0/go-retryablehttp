@@ -431,6 +431,12 @@ type Client struct {
 	// ErrorHandler specifies the custom error handler to use, if any
 	ErrorHandler ErrorHandler
 
+	// PrepareRetry can prepare the request for retry operation, for example re-sign it
+	PrepareRetry PrepareRetry
+
+	loggerInit sync.Once
+	clientInit sync.Once
+
 	// Ratelimiter specifies the rate limiter to use
 	Ratelimiter *ratelimit.Limiter
 	ratelimited bool
