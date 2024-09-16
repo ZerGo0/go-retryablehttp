@@ -704,21 +704,23 @@ func (c *Client) Do(req *Request) (*http.Response, error) {
 			}
 		}
 
-		limiter := *c.Ratelimiter
-		limiter.Take()
-
-		if i != 0 && c.ratelimited {
-			timer := time.NewTimer(35 * time.Second)
-			select {
-			case <-req.Context().Done():
-				timer.Stop()
-				c.HTTPClient.CloseIdleConnections()
-				return nil, req.Context().Err()
-			case <-timer.C:
-			}
-
+		if c.Ratelimiter != nil {
 			limiter := *c.Ratelimiter
 			limiter.Take()
+
+			if i != 0 && c.ratelimited {
+				timer := time.NewTimer(35 * time.Second)
+				select {
+				case <-req.Context().Done():
+					timer.Stop()
+					c.HTTPClient.CloseIdleConnections()
+					return nil, req.Context().Err()
+				case <-timer.C:
+				}
+
+				limiter := *c.Ratelimiter
+				limiter.Take()
+			}
 		}
 
 		// Attempt the request
