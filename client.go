@@ -433,9 +433,6 @@ type Client struct {
 
 	// Ratelimiter specifies the rate limiter to use
 	Ratelimiter *ratelimit.Limiter
-
-	loggerInit  sync.Once
-	clientInit  sync.Once
 	ratelimited bool
 }
 
